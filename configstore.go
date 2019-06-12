@@ -16,11 +16,17 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	ByNodeIdKeyPrefix  = "n:"
+	ByClusterKeyPrefix = "c:"
+)
+
 type Config struct {
 	listeners map[string]*v2.Listener
 	clusters  map[string]*v2.Cluster
 	rules     *AssignmentRules
-	services  map[string]struct{}
+	// Set type
+	services map[string]struct{}
 }
 
 func (c *Config) HasService(name string) bool {
@@ -29,9 +35,9 @@ func (c *Config) HasService(name string) bool {
 }
 
 func (c *Config) getAssignmentCache(node *core.Node) (*assignmentCache, bool) {
-	a, ok := c.rules.cache["n:"+node.Id]
+	a, ok := c.rules.cache[ByNodeIdKeyPrefix+node.Id]
 	if !ok {
-		a, ok = c.rules.cache["c:"+node.Cluster]
+		a, ok = c.rules.cache[ByClusterKeyPrefix+node.Cluster]
 	}
 	return a, ok
 }
@@ -96,7 +102,6 @@ func (cs *ConfigStore) Run() {
 }
 
 func (cs *ConfigStore) Load(cm *v1.ConfigMap) error {
-	log.Println("Load")
 	listeners, err := extractListeners(cm)
 	if err != nil {
 		return err
@@ -114,7 +119,11 @@ func (cs *ConfigStore) Load(cm *v1.ConfigMap) error {
 		config.listeners[listener.Name] = listener
 	}
 	for _, cluster := range clusters {
-		config.services[cluster.EdsClusterConfig.ServiceName] = struct{}{}
+		serviceName := cluster.EdsClusterConfig.ServiceName
+		if serviceName[:4] == "k8s:" {
+			serviceName = serviceName[4:]
+		}
+		config.services[serviceName] = struct{}{}
 		config.clusters[cluster.Name] = cluster
 	}
 	assignments, err := extractAssignments(cm)
@@ -248,7 +257,7 @@ func validateConfig(config *Config) error {
 			Resources:   cr,
 		})
 
-		config.rules.cache["n:"+key] = cache
+		config.rules.cache[ByNodeIdKeyPrefix+key] = cache
 	}
 
 	for key, assignment := range config.rules.ByCluster {
@@ -281,7 +290,7 @@ func validateConfig(config *Config) error {
 			Resources:   cr,
 		})
 
-		config.rules.cache["c:"+key] = cache
+		config.rules.cache[ByClusterKeyPrefix+key] = cache
 	}
 	return nil
 }

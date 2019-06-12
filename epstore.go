@@ -49,7 +49,7 @@ func NewEpStore(
 			config := es.configStore.GetConfigSnapshot()
 
 			key, _ := cache.MetaNamespaceKeyFunc(obj)
-			if !config.HasService("k8s:" + key) {
+			if !config.HasService(key) {
 				return
 			}
 
@@ -59,7 +59,7 @@ func NewEpStore(
 			config := es.configStore.GetConfigSnapshot()
 
 			key, _ := cache.MetaNamespaceKeyFunc(cur)
-			if !config.HasService("k8s:" + key) {
+			if !config.HasService(key) {
 				return
 			}
 			oep := old.(*v1.Endpoints)
@@ -75,7 +75,7 @@ func NewEpStore(
 			config := es.configStore.GetConfigSnapshot()
 
 			key, _ := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if !config.HasService("k8s:" + key) {
+			if !config.HasService(key) {
 				return
 			}
 
@@ -92,7 +92,7 @@ func (es *EpStore) Init() error {
 		return err
 	}
 	for _, ep := range eps.Items {
-		if !config.HasService("k8s:" + es.namespace + "/" + ep.GetName()) {
+		if !config.HasService(es.namespace + "/" + ep.GetName()) {
 			continue
 		}
 		es.store.Add(&ep)
@@ -105,21 +105,21 @@ func (es *EpStore) Run() {
 	es.informer.Run(nil)
 }
 
-func validAddress(subset v1.EndpointSubset, address v1.EndpointAddress) bool {
-	return len(subset.Ports) == 1 && address.TargetRef != nil
+func validSubset(subset v1.EndpointSubset) bool {
+	return len(subset.Ports) == 1
 }
 
 func (es *EpStore) LoadEp(ep *v1.Endpoints) {
-	epKey := "k8s:" + es.namespace + "/" + ep.GetName()
+	epKey := es.namespace + "/" + ep.GetName()
 
 	// Count how many registrations we need here
+	// so that we can correctly allocate what we need
 	n := 0
 	for _, subset := range ep.Subsets {
-		for _, address := range subset.Addresses {
-			if validAddress(subset, address) {
-				n++
-			}
+		if !validSubset(subset) {
+			continue
 		}
+		n += len(subset.Addresses)
 	}
 
 	cla := &v2.ClusterLoadAssignment{
@@ -131,10 +131,11 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 
 	n = 0
 	for _, subset := range ep.Subsets {
+		if !validSubset(subset) {
+			continue
+		}
 		for _, address := range subset.Addresses {
-			if !validAddress(subset, address) {
-				continue
-			}
+
 			cla.Endpoints[0].LbEndpoints[n] = endpoint.LbEndpoint{
 				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 					Endpoint: &endpoint.Endpoint{
@@ -173,6 +174,12 @@ func (es *EpStore) DeleteEp(key string) {
 }
 
 func (es *EpStore) Get(key string) ([]byte, bool) {
-	b, ok := es.registry.Load(key)
-	return b.([]byte), ok
+	// HACK: Strip an old k8s prefix
+	if key[:4] == "k8s:" {
+		key = key[4:]
+	}
+	if b, ok := es.registry.Load(key); ok {
+		return b.([]byte), true
+	}
+	return nil, false
 }

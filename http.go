@@ -27,6 +27,7 @@ func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Endpoint Discovery Service
 func (h *xDSHandler) handleEDS(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(w, "method not allowed", 405)
@@ -52,6 +53,7 @@ func (h *xDSHandler) handleEDS(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Listener Discovery Service
 func (h *xDSHandler) handleLDS(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(w, "method not allowed", 405)
@@ -72,6 +74,7 @@ func (h *xDSHandler) handleLDS(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Cluster Discovery Service
 func (h *xDSHandler) handleCDS(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(w, "method not allowed", 405)

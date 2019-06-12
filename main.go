@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,7 +8,6 @@ import (
 	"path/filepath"
 
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
-	"github.com/hashicorp/consul/command/flags"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-homedir"
 
@@ -20,24 +18,18 @@ import (
 	"k8s.io/klog"
 )
 
+const XDS_CONFIGMAP_ENV = "XDS_CONFIGMAP"
+const XDS_LISTEN_ENV = "XDS_LISTEN"
+
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
 // This configuration first attempts to load a local kubeconfig if a
 // path is given. If that doesn't work, then in-cluster auth is used.
-func K8SConfig(path string) (*rest.Config, error) {
-	// Get the configuration. This can come from multiple sources. We first
-	// try kubeconfig it is set directly, then we fall back to in-cluster
-	// auth. Finally, we try the default kubeconfig path.
-	kubeconfig := path
-	if kubeconfig == "" {
-		// If kubeconfig is empty, let's first try the default directory.
-		// This is must faster than trying in-cluster auth so we try this
-		// first.
-		dir, err := homedir.Dir()
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving home directory: %s", err)
-		}
-		kubeconfig = filepath.Join(dir, ".kube", "config")
+func K8SConfig() (*rest.Config, error) {
+	dir, err := homedir.Dir()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving home directory: %s", err)
 	}
+	kubeconfig := filepath.Join(dir, ".kube", "config")
 
 	// First try to get the configuration from the kubeconfig value
 	config, configErr := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -60,38 +52,26 @@ func K8SConfig(path string) (*rest.Config, error) {
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	var kubeconfig string
 
-	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	flagset.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
-	consulFlags := &flags.HTTPFlags{}
-	flags.Merge(flagset, consulFlags.ClientFlags())
-	flagset.Parse(os.Args[1:])
-
-	consulClient, err := consulFlags.APIClient()
+	config, err := K8SConfig()
 	if err != nil {
 		log.Println(err)
 		klog.Fatal(err)
 	}
 
-	k8sConfig, err := K8SConfig(kubeconfig)
+	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Println(err)
 		klog.Fatal(err)
 	}
 
-	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
-	if err != nil {
-		log.Println(err)
-		klog.Fatal(err)
-	}
-
-	c := NewController(consulClient, k8sClient)
+	// synchronously fetches initial state and sets things up
+	c := NewController(client)
 	c.Run()
 
 	log.Println("ready.")
 
-	listen := os.Getenv("XDS_LISTEN")
+	listen := os.Getenv(XDS_LISTEN_ENV)
 	if listen == "" {
 		listen = "127.0.0.1:5000"
 	}
