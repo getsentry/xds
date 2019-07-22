@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/gogo/protobuf/jsonpb"
@@ -20,6 +22,8 @@ func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handleLDS(w, req)
 	case "/v2/discovery:clusters":
 		h.handleCDS(w, req)
+	case "/config":
+		h.handleConfig(w, req)
 	case "/healthz":
 		http.Error(w, "ok", 200)
 	default:
@@ -93,6 +97,33 @@ func (h *xDSHandler) handleCDS(w http.ResponseWriter, req *http.Request) {
 	} else {
 		http.Error(w, "not found", 404)
 	}
+}
+
+func (h *xDSHandler) handleConfig(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+
+	status := 200
+	lastError := ""
+	lastUpdate := h.controller.configStore.lastUpdate
+
+	if h.controller.configStore.lastError != nil {
+		status = 500
+		lastError = h.controller.configStore.lastError.Error()
+	}
+
+	j, _ := json.Marshal(struct {
+		LastError  string    `json:"last_error"`
+		LastUpdate time.Time `json:"last_update"`
+	}{
+		lastError,
+		lastUpdate,
+	})
+
+	w.WriteHeader(status)
+	w.Write(j)
 }
 
 func readDiscoveryRequest(req *http.Request) (*v2.DiscoveryRequest, error) {

@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -83,6 +85,9 @@ type ConfigStore struct {
 
 	config    *Config
 	configMap *v1.ConfigMap
+
+	lastUpdate time.Time
+	lastError  error
 }
 
 func (cs *ConfigStore) Init() error {
@@ -102,6 +107,9 @@ func (cs *ConfigStore) Run() {
 }
 
 func (cs *ConfigStore) Load(cm *v1.ConfigMap) error {
+	defer func() {
+		cs.lastUpdate = time.Now()
+	}()
 	listeners, err := extractListeners(cm)
 	if err != nil {
 		return err
@@ -172,8 +180,10 @@ func NewConfigStore(
 			if reflect.DeepEqual(old, cur) {
 				return
 			}
-			if err := cs.Load(cur.(*v1.ConfigMap)); err != nil {
-				log.Println("update failed: ", err)
+
+			cs.lastError = cs.Load(cur.(*v1.ConfigMap))
+			if cs.lastError != nil {
+				log.Println("update failed: ", cs.lastError)
 			} else {
 				log.Println("update applied")
 			}
@@ -187,13 +197,14 @@ func extractListeners(cm *v1.ConfigMap) ([]*v2.Listener, error) {
 	// over each of them.
 	raw, err := unmarshalYAMLSlice([]byte(cm.Data["listeners"]))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("listeners: invalid YAML: " + err.Error())
 	}
 	rv := make([]*v2.Listener, len(raw))
 	for i, r := range raw {
 		var pb v2.Listener
 		if err := convertToPb(r, &pb); err != nil {
-			return nil, err
+			d, _ := yaml.Marshal(r)
+			return nil, errors.New(fmt.Sprintf("listeners: index %d: %s:\n\n%s", i, err, d))
 		}
 		rv[i] = &pb
 	}
@@ -205,13 +216,14 @@ func extractClusters(cm *v1.ConfigMap) ([]*v2.Cluster, error) {
 	// over each of them.
 	raw, err := unmarshalYAMLSlice([]byte(cm.Data["clusters"]))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("clusters: invalid YAML: " + err.Error())
 	}
 	rv := make([]*v2.Cluster, len(raw))
 	for i, r := range raw {
 		var pb v2.Cluster
 		if err := convertToPb(r, &pb); err != nil {
-			return nil, err
+			d, _ := yaml.Marshal(r)
+			return nil, errors.New(fmt.Sprintf("clusters: index %d: %s:\n\n%s", i, err, d))
 		}
 		rv[i] = &pb
 	}
