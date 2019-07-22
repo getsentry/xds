@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
+	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/rate_limit/v2"
+	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/redis_proxy/v2"
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-homedir"
