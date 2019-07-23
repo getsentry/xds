@@ -50,8 +50,12 @@ func (h *xDSHandler) handleEDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if b, ok := h.controller.epStore.Get(dr.ResourceNames[0]); ok {
-		w.Write(b)
+	if ep, ok := h.controller.epStore.Get(dr.ResourceNames[0]); ok {
+		if ep.version == dr.VersionInfo {
+			w.WriteHeader(304)
+			return
+		}
+		w.Write(ep.data)
 	} else {
 		http.Error(w, "not found", 404)
 	}
@@ -71,7 +75,13 @@ func (h *xDSHandler) handleLDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if b, ok := h.controller.configStore.GetConfigSnapshot().GetListeners(dr.Node); ok {
+	c := h.controller.configStore.GetConfigSnapshot()
+	if c.version == dr.VersionInfo {
+		w.WriteHeader(304)
+		return
+	}
+
+	if b, ok := c.GetListeners(dr.Node); ok {
 		w.Write(b)
 	} else {
 		http.Error(w, "not found", 404)
@@ -92,7 +102,13 @@ func (h *xDSHandler) handleCDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if b, ok := h.controller.configStore.GetConfigSnapshot().GetClusters(dr.Node); ok {
+	c := h.controller.configStore.GetConfigSnapshot()
+	if c.version == dr.VersionInfo {
+		w.WriteHeader(304)
+		return
+	}
+
+	if b, ok := c.GetClusters(dr.Node); ok {
 		w.Write(b)
 	} else {
 		http.Error(w, "not found", 404)
@@ -115,9 +131,11 @@ func (h *xDSHandler) handleConfig(w http.ResponseWriter, req *http.Request) {
 	}
 
 	j, _ := json.Marshal(struct {
+		Version    string    `json:"version"`
 		LastError  string    `json:"last_error"`
 		LastUpdate time.Time `json:"last_update"`
 	}{
+		h.controller.configStore.config.version,
 		lastError,
 		lastUpdate,
 	})

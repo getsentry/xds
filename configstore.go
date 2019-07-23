@@ -24,6 +24,7 @@ const (
 )
 
 type Config struct {
+	version   string
 	listeners map[string]*v2.Listener
 	clusters  map[string]*v2.Cluster
 	rules     *AssignmentRules
@@ -119,6 +120,7 @@ func (cs *ConfigStore) Load(cm *v1.ConfigMap) error {
 		return err
 	}
 	config := &Config{
+		version:   cm.ObjectMeta.ResourceVersion,
 		listeners: make(map[string]*v2.Listener),
 		clusters:  make(map[string]*v2.Cluster),
 		services:  make(map[string]struct{}),
@@ -251,7 +253,7 @@ func validateConfig(config *Config) error {
 			}
 		}
 		cache.listeners, _ = structToJSON(&v2.DiscoveryResponse{
-			VersionInfo: "0",
+			VersionInfo: config.version,
 			Resources:   lr,
 		})
 
@@ -265,7 +267,7 @@ func validateConfig(config *Config) error {
 			}
 		}
 		cache.clusters, _ = structToJSON(&v2.DiscoveryResponse{
-			VersionInfo: "0",
+			VersionInfo: config.version,
 			Resources:   cr,
 		})
 
@@ -284,7 +286,7 @@ func validateConfig(config *Config) error {
 			}
 		}
 		cache.listeners, _ = structToJSON(&v2.DiscoveryResponse{
-			VersionInfo: "0",
+			VersionInfo: config.version,
 			Resources:   lr,
 		})
 
@@ -298,7 +300,7 @@ func validateConfig(config *Config) error {
 			}
 		}
 		cache.clusters, _ = structToJSON(&v2.DiscoveryResponse{
-			VersionInfo: "0",
+			VersionInfo: config.version,
 			Resources:   cr,
 		})
 

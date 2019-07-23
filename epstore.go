@@ -28,6 +28,11 @@ type EpStore struct {
 	registry sync.Map
 }
 
+type Endpoints struct {
+	version string
+	data    []byte
+}
+
 func NewEpStore(
 	k8sClient *kubernetes.Clientset,
 	namespace string,
@@ -111,6 +116,12 @@ func validSubset(subset v1.EndpointSubset) bool {
 
 func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 	epKey := es.namespace + "/" + ep.GetName()
+	version := ep.ObjectMeta.ResourceVersion
+
+	// Check if the existing resource version is the same
+	if ep, ok := es.registry.Load(epKey); ok && ep.(*Endpoints).version == version {
+		return
+	}
 
 	// Count how many registrations we need here
 	// so that we can correctly allocate what we need
@@ -160,12 +171,15 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 
 	r, _ := types.MarshalAny(cla)
 	j, _ := structToJSON(&v2.DiscoveryResponse{
-		VersionInfo: "0",
+		VersionInfo: version,
 		Resources:   []types.Any{*r},
 	})
 
 	// Write entire DiscoveryResponse into the registry
-	es.registry.Store(epKey, j)
+	es.registry.Store(epKey, &Endpoints{
+		version: version,
+		data:    j,
+	})
 }
 
 func (es *EpStore) DeleteEp(key string) {
@@ -173,13 +187,13 @@ func (es *EpStore) DeleteEp(key string) {
 	es.registry.Delete(key)
 }
 
-func (es *EpStore) Get(key string) ([]byte, bool) {
+func (es *EpStore) Get(key string) (*Endpoints, bool) {
 	// HACK: Strip an old k8s prefix
 	if key[:4] == "k8s:" {
 		key = key[4:]
 	}
-	if b, ok := es.registry.Load(key); ok {
-		return b.([]byte), true
+	if ep, ok := es.registry.Load(key); ok {
+		return ep.(*Endpoints), true
 	}
 	return nil, false
 }
