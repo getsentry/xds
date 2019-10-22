@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/gogo/protobuf/types"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -91,7 +91,7 @@ type ConfigStore struct {
 	lastError  error
 }
 
-func (cs *ConfigStore) Init() error {
+func (cs *ConfigStore) InitFromK8s() error {
 	namespace, name := k8sSplitName(cs.configName)
 	log.Println("ConfigStore.Init: ", namespace, name, cs.configName)
 	cm, err := cs.k8sClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})

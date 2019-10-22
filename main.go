@@ -23,6 +23,7 @@ import (
 
 const XDS_CONFIGMAP_ENV = "XDS_CONFIGMAP"
 const XDS_LISTEN_ENV = "XDS_LISTEN"
+const XDS_BOOTSTRAP_FILE = "XDS_BOOTSTRAP_FILE"
 
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
 // This configuration first attempts to load a local kubeconfig if a

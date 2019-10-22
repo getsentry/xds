@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/gogo/protobuf/jsonpb"
 )
 
@@ -15,6 +16,11 @@ type xDSHandler struct {
 }
 
 func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if h.controller.bootstrapData != nil {
+		h.controller.bootstrapData.ServeHTTP(w, req)
+		return
+	}
+
 	switch req.URL.Path {
 	case "/v2/discovery:endpoints":
 		h.handleEDS(w, req)
@@ -24,6 +30,8 @@ func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handleCDS(w, req)
 	case "/config":
 		h.handleConfig(w, req)
+	case "/bootstrap":
+		h.handleBootstrap(w, req)
 	case "/healthz":
 		http.Error(w, "ok", 200)
 	default:
@@ -50,7 +58,7 @@ func (h *xDSHandler) handleEDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if ep, ok := h.controller.epStore.Get(dr.ResourceNames[0]); ok {
+	if ep, ok := h.controller.GetEndpoints(dr.ResourceNames[0]); ok {
 		if ep.version == dr.VersionInfo {
 			w.WriteHeader(304)
 			return
@@ -75,7 +83,7 @@ func (h *xDSHandler) handleLDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	c := h.controller.configStore.GetConfigSnapshot()
+	c := h.controller.GetConfigSnapshot()
 	if c.version == dr.VersionInfo {
 		w.WriteHeader(304)
 		return
@@ -102,7 +110,7 @@ func (h *xDSHandler) handleCDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	c := h.controller.configStore.GetConfigSnapshot()
+	c := h.controller.GetConfigSnapshot()
 	if c.version == dr.VersionInfo {
 		w.WriteHeader(304)
 		return
@@ -142,6 +150,59 @@ func (h *xDSHandler) handleConfig(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(status)
 	w.Write(j)
+}
+
+func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+
+	clusterValues, ok := req.URL.Query()["cluster"]
+	if !ok || len(clusterValues) != 1 {
+		http.Error(w, "invalid cluster parameter", 400)
+		return
+	}
+
+	idValues, ok := req.URL.Query()["id"]
+	if !ok || len(idValues) != 1 {
+		http.Error(w, "invalid id parameter", 400)
+		return
+	}
+
+	node := &core.Node{
+		Id:      idValues[0],
+		Cluster: clusterValues[0],
+	}
+
+	configSnapshot := h.controller.configStore.GetConfigSnapshot()
+
+	clusterData, ok := configSnapshot.GetClusters(node)
+	if !ok {
+		http.Error(w, "not found", 404)
+	}
+
+	listenerData, ok := configSnapshot.GetListeners(node)
+	if !ok {
+		http.Error(w, "not found", 404)
+	}
+
+	endpointData := make(map[string][]byte)
+	h.controller.epStore.registry.Range(func(key interface{}, value interface{}) bool {
+		endpointData[key.(string)] = value.(*Endpoints).data
+		return true
+	})
+
+	data, err := json.Marshal(bootstrapData{
+		Clusters:  clusterData,
+		Listeners: listenerData,
+		Endpoints: endpointData,
+	})
+	if err != nil {
+		http.Error(w, "encoding error", 500)
+	} else {
+		w.Write(data)
+	}
 }
 
 func readDiscoveryRequest(req *http.Request) (*v2.DiscoveryRequest, error) {
