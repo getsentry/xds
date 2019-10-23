@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,7 +24,13 @@ import (
 
 const XDS_CONFIGMAP_ENV = "XDS_CONFIGMAP"
 const XDS_LISTEN_ENV = "XDS_LISTEN"
-const XDS_BOOTSTRAP_FILE = "XDS_BOOTSTRAP_FILE"
+
+var (
+	mode              = flag.String("mode", "server", "what mode to run xds in (server / proxy)")
+	upstreamProxyURL  = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
+	configName        = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
+	bootstrapDataFile = flag.String("bootstrap-data", "", "bootstrap data file (if running in proxy mode)")
+)
 
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
 // This configuration first attempts to load a local kubeconfig if a
@@ -54,9 +61,7 @@ func K8SConfig() (*rest.Config, error) {
 	return config, nil
 }
 
-func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
+func runServerMode() {
 	config, err := K8SConfig()
 	if err != nil {
 		log.Println(err)
@@ -70,14 +75,55 @@ func main() {
 	}
 
 	// synchronously fetches initial state and sets things up
-	c := NewController(client)
+	c := NewController(client, *configName)
 	c.Run()
+	serveHTTP(&xDSHandler{c})
+}
 
+func runProxyMode() {
+	bootstrapData, err := readBootstrapData(*bootstrapDataFile)
+	if err != nil {
+		panic(err)
+	}
+
+	proxy, err := newProxy(*upstreamProxyURL, bootstrapData)
+	if err != nil {
+		panic(err)
+	}
+
+	serveHTTP(proxy)
+}
+
+func serveHTTP(handler http.Handler) {
 	log.Println("ready.")
 
 	listen := os.Getenv(XDS_LISTEN_ENV)
 	if listen == "" {
 		listen = "127.0.0.1:5000"
 	}
-	http.ListenAndServe(listen, &xDSHandler{c})
+	http.ListenAndServe(listen, handler)
+}
+
+func main() {
+	flag.Parse()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if *mode != "server" && *mode != "proxy" {
+	}
+
+	switch *mode {
+	case "server":
+		runServerMode()
+	case "proxy":
+		if *upstreamProxyURL == "" {
+			log.Fatalf("Must pass 'upstream-proxy-url' when running in proxy mode")
+		}
+		if *bootstrapDataFile == "" {
+			log.Fatalf("Must pass 'bootstrap-data' when running in proxy mode ")
+		}
+		runProxyMode()
+	default:
+		log.Fatalf("Invalid XDS mode (only 'server' and 'proxy' are supported): %s", *mode)
+	}
+
 }

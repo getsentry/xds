@@ -59,6 +59,20 @@ func (c *Config) GetClusters(node *core.Node) ([]byte, bool) {
 	return nil, false
 }
 
+func (c *Config) GetClusterNames(node *core.Node) []string {
+	result := make([]string, 0)
+
+	if assignment, exists := c.rules.ByNodeId[node.Id]; exists {
+		result = append(result, assignment.Clusters...)
+	}
+
+	if assignment, exists := c.rules.ByCluster[node.Cluster]; exists {
+		result = append(result, assignment.Clusters...)
+	}
+
+	return result
+}
+
 type Assignment struct {
 	Listeners []string `json:"listeners"`
 	Clusters  []string `json:"clusters"`
@@ -157,9 +171,6 @@ func NewConfigStore(
 	k8sClient *kubernetes.Clientset,
 	configName string,
 ) *ConfigStore {
-	if configName == "" {
-		configName = "default/xds"
-	}
 	cs := &ConfigStore{
 		configName: configName,
 		k8sClient:  k8sClient,

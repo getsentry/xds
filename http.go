@@ -16,11 +16,6 @@ type xDSHandler struct {
 }
 
 func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if h.controller.bootstrapData != nil {
-		h.controller.bootstrapData.ServeHTTP(w, req)
-		return
-	}
-
 	switch req.URL.Path {
 	case "/v2/discovery:endpoints":
 		h.handleEDS(w, req)
@@ -180,18 +175,28 @@ func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
 	clusterData, ok := configSnapshot.GetClusters(node)
 	if !ok {
 		http.Error(w, "not found", 404)
+		return
 	}
 
 	listenerData, ok := configSnapshot.GetListeners(node)
 	if !ok {
 		http.Error(w, "not found", 404)
+		return
 	}
 
+	clusterNames := configSnapshot.GetClusterNames(node)
 	endpointData := make(map[string][]byte)
-	h.controller.epStore.registry.Range(func(key interface{}, value interface{}) bool {
-		endpointData[key.(string)] = value.(*Endpoints).data
-		return true
-	})
+	for _, clusterName := range clusterNames {
+		cluster, ok := configSnapshot.clusters[clusterName]
+		if !ok {
+			log.Printf("warning: failed to dump bootstrap data for cluster %v", clusterName)
+			continue
+		}
+
+		if endpoint, ok := h.controller.epStore.Get(cluster.EdsClusterConfig.ServiceName); ok {
+			endpointData[clusterName] = endpoint.data
+		}
+	}
 
 	data, err := json.Marshal(bootstrapData{
 		Clusters:  clusterData,
