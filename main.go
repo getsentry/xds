@@ -30,6 +30,7 @@ var (
 	upstreamProxyURL  = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
 	configName        = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
 	bootstrapDataFile = flag.String("bootstrap-data", "", "bootstrap data file (if running in proxy mode)")
+	envoyArgs         = flag.String("envoy-args", "", "arguments for child envoy process")
 )
 
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
@@ -87,6 +88,11 @@ func runProxyMode() {
 	}
 
 	proxy, err := newProxy(*upstreamProxyURL, bootstrapData)
+	if err != nil {
+		panic(err)
+	}
+
+	err = runEnvoy(*envoyArgs)
 	if err != nil {
 		panic(err)
 	}

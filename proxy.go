@@ -45,7 +45,6 @@ func (p *proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (p *proxy) handleEDS(w http.ResponseWriter, req *http.Request) {
-	log.Printf("HMMM? %v / %v", len(p.readEndpoints), len(p.bootstrapData.Endpoints))
 	if len(p.readEndpoints) == len(p.bootstrapData.Endpoints) {
 		p.reverseProxy.ServeHTTP(w, req)
 		return
