@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
@@ -22,15 +21,13 @@ import (
 	"k8s.io/klog"
 )
 
-const XDS_CONFIGMAP_ENV = "XDS_CONFIGMAP"
-const XDS_LISTEN_ENV = "XDS_LISTEN"
-
 var (
 	mode              = flag.String("mode", "server", "what mode to run xds in (server / proxy)")
 	upstreamProxyURL  = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
 	configName        = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
 	bootstrapDataFile = flag.String("bootstrap-data", "", "bootstrap data file (if running in proxy mode)")
 	envoyArgs         = flag.String("envoy-args", "", "arguments for child envoy process")
+	listen            = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
 )
 
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
@@ -102,12 +99,7 @@ func runProxyMode() {
 
 func serveHTTP(handler http.Handler) {
 	log.Println("ready.")
-
-	listen := os.Getenv(XDS_LISTEN_ENV)
-	if listen == "" {
-		listen = "127.0.0.1:5000"
-	}
-	http.ListenAndServe(listen, handler)
+	http.ListenAndServe(*listen, handler)
 }
 
 func main() {
