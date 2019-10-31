@@ -37,8 +37,11 @@ func (p *proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case "/v2/discovery:clusters":
 		p.handleCDS(w, req)
 	case "/healthz":
-		// TODO
-		http.Error(w, "ok", 200)
+		if len(p.readEndpoints) == len(p.bootstrapData.Endpoints) {
+			http.Error(w, "ok", 200)
+		} else {
+			http.Error(w, "bootstrapping", 500)
+		}
 	default:
 		http.Error(w, "not found", 404)
 	}
