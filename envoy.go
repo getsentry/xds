@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -16,17 +15,8 @@ func runEnvoy(args string) error {
 	}
 
 	envoyCommand := exec.Command("envoy", argParts...)
-	envoyStdout, err := envoyCommand.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	go passthroughOutput(envoyStdout, os.Stdout)
-
-	envoyStderr, err := envoyCommand.StderrPipe()
-	if err != nil {
-		return err
-	}
-	go passthroughOutput(envoyStderr, os.Stderr)
+	envoyCommand.Stdout = os.Stdout
+	envoyCommand.Stderr = os.Stderr
 
 	err = envoyCommand.Start()
 	if err != nil {
@@ -40,20 +30,4 @@ func runEnvoy(args string) error {
 	}()
 
 	return nil
-}
-
-func passthroughOutput(source io.ReadCloser, destination *os.File) {
-	buffer := make([]byte, 4096)
-
-	for {
-		_, err := source.Read(buffer)
-		if err != nil {
-			return
-		}
-
-		_, err = destination.Write(buffer)
-		if err != nil {
-			return
-		}
-	}
 }
