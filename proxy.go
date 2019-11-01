@@ -12,19 +12,20 @@ type proxy struct {
 	reverseProxy  *httputil.ReverseProxy
 	readClusters  bool
 	readListeners bool
-	readEndpoints map[string]struct{}
+	readEndpoints bool
 }
 
 func newProxy(upstreamURLRaw string, bootstrapData *bootstrapData) (*proxy, error) {
+	log.Printf("Running in proxy mode (upstream is '%s')", upstreamURLRaw)
 	upstreamURL, err := url.Parse(upstreamURLRaw)
 	if err != nil {
 		return nil, err
 	}
 
+	reverseProxy := httputil.NewSingleHostReverseProxy(upstreamURL)
 	return &proxy{
 		bootstrapData: bootstrapData,
-		reverseProxy:  httputil.NewSingleHostReverseProxy(upstreamURL),
-		readEndpoints: make(map[string]struct{}),
+		reverseProxy:  reverseProxy,
 	}, nil
 }
 
@@ -37,7 +38,7 @@ func (p *proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	case "/v2/discovery:clusters":
 		p.handleCDS(w, req)
 	case "/healthz":
-		if len(p.readEndpoints) == len(p.bootstrapData.Endpoints) {
+		if p.readEndpoints {
 			http.Error(w, "ok", 200)
 		} else {
 			http.Error(w, "bootstrapping", 500)
@@ -48,7 +49,7 @@ func (p *proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (p *proxy) handleEDS(w http.ResponseWriter, req *http.Request) {
-	if len(p.readEndpoints) == len(p.bootstrapData.Endpoints) {
+	if p.readEndpoints {
 		p.reverseProxy.ServeHTTP(w, req)
 		return
 	}
@@ -69,9 +70,19 @@ func (p *proxy) handleEDS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Printf("serving request for '%s' endpoints from bootstrap data", dr.ResourceNames[0])
-	p.readEndpoints[dr.ResourceNames[0]] = struct{}{}
-	w.Write(p.bootstrapData.Endpoints[dr.ResourceNames[0]])
+	p.bootstrapData.endpointsLock.Lock()
+	defer p.bootstrapData.endpointsLock.Unlock()
+	if _, exists := p.bootstrapData.Endpoints[dr.ResourceNames[0]]; exists {
+		log.Printf("serving request for '%s' endpoints from bootstrap data", dr.ResourceNames[0])
+		w.Write(p.bootstrapData.Endpoints[dr.ResourceNames[0]])
+		delete(p.bootstrapData.Endpoints, dr.ResourceNames[0])
+		if len(p.bootstrapData.Endpoints) == 0 {
+			p.readEndpoints = true
+		}
+	} else {
+		log.Printf("eds failed, endpoints for that cluster already read")
+		http.Error(w, "unavailable bootstrap data", 500)
+	}
 }
 
 func (p *proxy) handleLDS(w http.ResponseWriter, req *http.Request) {

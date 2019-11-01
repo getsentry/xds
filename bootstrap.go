@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"sync"
 )
 
 type bootstrapData struct {
-	Clusters  []byte            `json:"clusters"`
-	Listeners []byte            `json:"listeners"`
-	Endpoints map[string][]byte `json:"endpoints"`
+	Clusters      []byte            `json:"clusters"`
+	Listeners     []byte            `json:"listeners"`
+	Endpoints     map[string][]byte `json:"endpoints"`
+	endpointsLock sync.Mutex
 }
 
 func readBootstrapData(path string) (*bootstrapData, error) {
