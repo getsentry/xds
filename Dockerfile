@@ -12,7 +12,8 @@ COPY . ./
 
 RUN go build -v -o /bin/xds
 
-FROM alpine:3.10
+FROM envoyproxy/envoy-alpine:v1.12.0
+
 COPY --from=builder /bin/xds /bin/xds
 
 ENTRYPOINT ["/bin/xds"]
