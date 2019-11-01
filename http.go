@@ -194,7 +194,7 @@ func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if endpoint, ok := h.controller.epStore.Get(cluster.EdsClusterConfig.ServiceName); ok {
-			endpointData[clusterName] = endpoint.data
+			endpointData[cluster.EdsClusterConfig.ServiceName] = endpoint.data
 		}
 	}
 
