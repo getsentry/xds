@@ -106,9 +106,6 @@ func main() {
 	flag.Parse()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	if *mode != "server" && *mode != "proxy" {
-	}
-
 	switch *mode {
 	case "server":
 		runServerMode()
