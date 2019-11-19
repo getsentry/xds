@@ -14,6 +14,8 @@ RUN go build -v -o /bin/xds
 
 FROM envoyproxy/envoy-alpine:v1.12.0
 
+RUN apk add --no-cache curl
+
 COPY --from=builder /bin/xds /bin/xds
 
 ENTRYPOINT ["/bin/xds"]
