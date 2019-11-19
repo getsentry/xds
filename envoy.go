@@ -6,8 +6,15 @@ import (
 	"os/exec"
 )
 
-func runEnvoy(serviceNode, serviceCluster string, concurrency int) error {
-	envoyCommand := exec.Command("envoy", "--service-node", serviceNode, "--service-cluster", serviceCluster, "--concurrency", string(concurrency))
+func runEnvoy(serviceNode, serviceCluster, envoyConfigPath string, concurrency int) error {
+	envoyCommand := exec.Command(
+		"envoy",
+		"--service-node", serviceNode,
+		"--service-cluster", serviceCluster,
+		"--concurrency", string(concurrency),
+		"-c", envoyConfigPath,
+	)
+
 	envoyCommand.Stdout = os.Stdout
 	envoyCommand.Stderr = os.Stderr
 

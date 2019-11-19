@@ -29,6 +29,7 @@ var (
 	serviceNode       = flag.String("service-node", "", "service node name")
 	serviceCluster    = flag.String("service-cluster", "", "service cluster name")
 	concurrency       = flag.Int("concurrency", 1, "envoy concurrency")
+	envoyConfigPath   = flag.String("envoy-config-path", "/envoy.yaml", "path to envoy config")
 	listen            = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
 )
 
@@ -91,7 +92,7 @@ func runProxyMode() {
 		panic(err)
 	}
 
-	err = runEnvoy(*serviceNode, *serviceCluster, *concurrency)
+	err = runEnvoy(*serviceNode, *serviceCluster, *envoyConfigPath, *concurrency)
 	if err != nil {
 		panic(err)
 	}
