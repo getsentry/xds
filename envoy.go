@@ -4,21 +4,14 @@ import (
 	"log"
 	"os"
 	"os/exec"
-
-	"github.com/google/shlex"
 )
 
-func runEnvoy(args string) error {
-	argParts, err := shlex.Split(args)
-	if err != nil {
-		return err
-	}
-
-	envoyCommand := exec.Command("envoy", argParts...)
+func runEnvoy(serviceNode, serviceCluster string, concurrency int) error {
+	envoyCommand := exec.Command("envoy", "--service-node", serviceNode, "--service-cluster", serviceCluster, "--concurrency", string(concurrency))
 	envoyCommand.Stdout = os.Stdout
 	envoyCommand.Stderr = os.Stderr
 
-	err = envoyCommand.Start()
+	err := envoyCommand.Start()
 	if err != nil {
 		return err
 	}

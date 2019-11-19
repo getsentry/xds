@@ -26,7 +26,9 @@ var (
 	upstreamProxyURL  = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
 	configName        = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
 	bootstrapDataFile = flag.String("bootstrap-data", "", "bootstrap data file (if running in proxy mode)")
-	envoyArgs         = flag.String("envoy-args", "", "arguments for child envoy process")
+	serviceNode       = flag.String("service-node", "", "service node name")
+	serviceCluster    = flag.String("service-cluster", "", "service cluster name")
+	concurrency       = flag.Int("concurrency", 1, "envoy concurrency")
 	listen            = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
 )
 
@@ -89,7 +91,7 @@ func runProxyMode() {
 		panic(err)
 	}
 
-	err = runEnvoy(*envoyArgs)
+	err = runEnvoy(*serviceNode, *serviceCluster, *concurrency)
 	if err != nil {
 		panic(err)
 	}
@@ -114,7 +116,13 @@ func main() {
 			log.Fatalf("Must pass 'upstream-proxy-url' when running in proxy mode")
 		}
 		if *bootstrapDataFile == "" {
-			log.Fatalf("Must pass 'bootstrap-data' when running in proxy mode ")
+			log.Fatalf("Must pass 'bootstrap-data' when running in proxy mode")
+		}
+		if *serviceNode == "" {
+			log.Fatalf("Must pass 'service-node' while running in proxy mode")
+		}
+		if *serviceCluster == "" {
+			log.Fatalf("Must pass 'service-cluster' when running in proxy mode")
 		}
 		runProxyMode()
 	default:
