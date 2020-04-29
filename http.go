@@ -146,6 +146,8 @@ func (h *xDSHandler) handleConfig(w http.ResponseWriter, req *http.Request) {
 
 func readDiscoveryRequest(req *http.Request) (*v2.DiscoveryRequest, error) {
 	var dr v2.DiscoveryRequest
-	err := jsonpb.Unmarshal(req.Body, &dr)
+	err := (&jsonpb.Unmarshaler{
+		AllowUnknownFields: true,
+	}).Unmarshal(req.Body, &dr)
 	return &dr, err
 }
