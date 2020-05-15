@@ -14,7 +14,7 @@ function check_kubectl_context {
   k8s_ctx=$(kubectl config current-context)
   echo "Test runner creates/deletes resources using kubectl"
   echo "Current kubectl context: ${k8s_ctx}"
-  read -rp "Continue (y/n)?" choice
+  read -rp "Continue (y/n)? " choice
   case "$choice" in 
     y|Y ) echo;;
     * ) exit 1;;
@@ -34,6 +34,7 @@ function main {
 
   log "Deploy to k8s"
   kubectl apply -f "${SCRIPT_DIR}/k8s"
+  trap 'kubectl delete -f "${SCRIPT_DIR}/k8s"' exit
 
   log "Wait a bit ..."
   sleep 5
@@ -42,6 +43,23 @@ function main {
   kubectl scale deployment envoy --replicas 0
   kubectl scale deployment envoy --replicas 1
 
+  log "Wait a bit ..."
+  sleep 5
+
+  local xds_port;
+  local envoy_admin_port;
+  local envoy_foo_port;
+
+  xds_port=$(kubectl get service xds -o json | jq '.spec.ports[0].nodePort')
+  envoy_admin_port=$(kubectl get service envoy -o json | jq '.spec.ports[] | select(.name=="admin") | .nodePort')
+  envoy_foo_port=$(kubectl get service envoy -o json | jq '.spec.ports[] | select(.name=="foo") | .nodePort')
+
+  log "Running tests"
+  XDS_URL="http://localhost:${xds_port}" \
+  ENVOY_ADMIN_URL="http://localhost:${envoy_admin_port}" \
+  ENVOY_FOO_URL="http://localhost:${envoy_foo_port}" \
+    bats tests/
+
 }
 
-main
+main "$@"
