@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xds
+  labels:
+    service: xds
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: xds
+  template:
+    metadata:
+      labels:
+        service: xds
+    spec:
+      containers:
+        - image: xds
+          imagePullPolicy: Never
+          name: xds
+          env:
+            - name: GOMAXPROCS
+              value: "1"
+            - name: XDS_LISTEN
+              value: "0.0.0.0:80"
+            - name: XDS_CONFIGMAP
+              value: default/xds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: xds
+spec:
+  type: NodePort
+  selector:
+    service: xds
+  ports:
+    - protocol: TCP
+      port: 80
