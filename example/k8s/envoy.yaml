@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy
+  labels:
+    service: envoy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: envoy
+  template:
+    metadata:
+      labels:
+        service: envoy
+    spec:
+      containers:
+        - image: xdsenvoy
+          imagePullPolicy: Never
+          name: envoy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy
+spec:
+  type: NodePort
+  selector:
+    service: envoy
+  ports:
+    - port: 8001
+      name: admin
+    - port: 10001
+      name: foo
