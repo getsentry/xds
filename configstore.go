@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/gogo/protobuf/types"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -30,6 +30,56 @@ type Config struct {
 	rules     *AssignmentRules
 	// Set type
 	services map[string]struct{}
+}
+
+// NewNewConfig initializes config struct
+func NewConfig() *Config {
+	return &Config{
+		listeners: make(map[string]*v2.Listener),
+		clusters:  make(map[string]*v2.Cluster),
+		services:  make(map[string]struct{}),
+	}
+}
+
+// Load fills config from config map.
+func (config *Config) Load(cm *v1.ConfigMap) error {
+	config.version = cm.ObjectMeta.ResourceVersion
+
+	listeners, err := extractListeners(cm)
+	if err != nil {
+		return err
+	}
+
+	clusters, err := extractClusters(cm)
+	if err != nil {
+		return err
+	}
+
+	for _, listener := range listeners {
+		config.listeners[listener.Name] = listener
+	}
+
+	for _, cluster := range clusters {
+		serviceName := cluster.EdsClusterConfig.ServiceName
+		if serviceName[:4] == "k8s:" {
+			serviceName = serviceName[4:]
+		}
+		config.services[serviceName] = struct{}{}
+		config.clusters[cluster.Name] = cluster
+	}
+
+	assignments, err := extractAssignments(cm)
+	if err != nil {
+		return err
+	}
+
+	config.rules = assignments
+	if err := validateConfig(config); err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
 func (c *Config) HasService(name string) bool {
@@ -111,41 +161,11 @@ func (cs *ConfigStore) Load(cm *v1.ConfigMap) error {
 	defer func() {
 		cs.lastUpdate = time.Now()
 	}()
-	listeners, err := extractListeners(cm)
-	if err != nil {
-		return err
-	}
-	clusters, err := extractClusters(cm)
-	if err != nil {
-		return err
-	}
-	config := &Config{
-		version:   cm.ObjectMeta.ResourceVersion,
-		listeners: make(map[string]*v2.Listener),
-		clusters:  make(map[string]*v2.Cluster),
-		services:  make(map[string]struct{}),
-	}
-	for _, listener := range listeners {
-		config.listeners[listener.Name] = listener
-	}
-	for _, cluster := range clusters {
-		serviceName := cluster.EdsClusterConfig.ServiceName
-		if serviceName[:4] == "k8s:" {
-			serviceName = serviceName[4:]
-		}
-		config.services[serviceName] = struct{}{}
-		config.clusters[cluster.Name] = cluster
-	}
-	assignments, err := extractAssignments(cm)
-	if err != nil {
-		return err
-	}
-	config.rules = assignments
-	if err := validateConfig(config); err != nil {
+	cs.config = NewConfig()
+	if err := cs.config.Load(cm); err != nil {
 		return err
 	}
 	cs.configMap = cm
-	cs.config = config
 	return nil
 }
 

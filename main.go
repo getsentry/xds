@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,7 +16,9 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-homedir"
+	"sigs.k8s.io/yaml"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
@@ -23,6 +28,27 @@ import (
 
 const XDS_CONFIGMAP_ENV = "XDS_CONFIGMAP"
 const XDS_LISTEN_ENV = "XDS_LISTEN"
+
+// ReReadFileorStdin returns content of file or stdin.
+func ReadFileorStdin(filePath string) ([]byte, error) {
+	var fileHandler *os.File
+
+	if filePath == "-" {
+		fileHandler = os.Stdin
+	} else {
+		var err error
+		fileHandler, err = os.Open(filePath)
+		defer fileHandler.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	buf := bytes.NewBuffer(nil)
+	io.Copy(buf, fileHandler)
+
+	return buf.Bytes(), nil
+}
 
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
 // This configuration first attempts to load a local kubeconfig if a
@@ -56,27 +82,54 @@ func K8SConfig() (*rest.Config, error) {
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	config, err := K8SConfig()
-	if err != nil {
-		log.Println(err)
-		klog.Fatal(err)
+	validatePtr := flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
+
+	flag.Parse()
+
+	if *validatePtr == "" {
+		config, err := K8SConfig()
+		if err != nil {
+			log.Println(err)
+			klog.Fatal(err)
+		}
+
+		client, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			log.Println(err)
+			klog.Fatal(err)
+		}
+
+		// synchronously fetches initial state and sets things up
+		c := NewController(client)
+		c.Run()
+
+		log.Println("ready.")
+
+		listen := os.Getenv(XDS_LISTEN_ENV)
+		if listen == "" {
+			listen = "127.0.0.1:5000"
+		}
+		http.ListenAndServe(listen, &xDSHandler{c})
+	} else {
+		log.Printf("Validating: %s\n", *validatePtr)
+		cmRaw, err := ReadFileorStdin(*validatePtr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var cm v1.ConfigMap
+
+		err = yaml.UnmarshalStrict(cmRaw, &cm)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		config := NewConfig()
+		if err := config.Load(&cm); err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Configuration is valid.")
+
 	}
 
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Println(err)
-		klog.Fatal(err)
-	}
-
-	// synchronously fetches initial state and sets things up
-	c := NewController(client)
-	c.Run()
-
-	log.Println("ready.")
-
-	listen := os.Getenv(XDS_LISTEN_ENV)
-	if listen == "" {
-		listen = "127.0.0.1:5000"
-	}
-	http.ListenAndServe(listen, &xDSHandler{c})
 }
