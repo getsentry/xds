@@ -2,12 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/gogo/protobuf/jsonpb"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type xDSHandler struct {
@@ -24,11 +27,41 @@ func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handleCDS(w, req)
 	case "/config":
 		h.handleConfig(w, req)
+	case "/validate":
+		h.handleValidate(w, req)
 	case "/healthz":
 		http.Error(w, "ok", 200)
 	default:
 		http.Error(w, "not found", 404)
 	}
+}
+
+func (h *xDSHandler) handleValidate(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+
+	var cm v1.ConfigMap
+
+	if body, err := ioutil.ReadAll(req.Body); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	} else {
+		if err := yaml.UnmarshalStrict(body, &cm); err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+	}
+
+	config := NewConfig()
+	if err := config.Load(&cm); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	http.Error(w, "ok", 200)
 }
 
 // Endpoint Discovery Service
