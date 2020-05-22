@@ -75,3 +75,34 @@
   [ "$(echo "${output}" | jq '.resources[0].cluster_name')" == '"default/bar"' ]
 
 }
+
+
+@test "/validate endpoint invalid configmap" {
+  run curl -s -f -d "invalid yaml" "${XDS_URL}/validate"
+  [ "${status}" -ne 0 ]
+}
+
+@test "/validate endpoint valid configmap" {
+  run curl -s -f --data-binary @"${SCRIPT_DIR}/k8s/configmap.yaml" "${XDS_URL}/validate"
+  [ "${status}" -eq 0 ]
+  [ "${output}" == "ok" ]
+}
+
+
+@test "--validate from stdin invalid" {
+  run docker run --rm -i xds --validate - <<<"invalid yaml"
+  [ "${status}" -eq 1 ]
+}
+
+@test "--validate from stdin valid" {
+  docker run --rm -i xds --validate - < "${SCRIPT_DIR}/k8s/configmap.yaml"
+}
+
+@test "--validate file invalid" {
+  run docker run --rm -i xds --validate <(echo "invalid")
+  [ "${status}" -eq 1 ]
+}
+
+@test "--validate file valid" {
+  docker run --volume "${SCRIPT_DIR}/k8s/configmap.yaml:/configmap.yaml" --rm -i xds --validate /configmap.yaml
+}
