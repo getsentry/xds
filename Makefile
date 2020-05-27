@@ -14,4 +14,7 @@ deploy: push
 clean:
 	rm -f ./xds
 
-.PHONY: docker push deploy clean
+test:
+	go test -v
+
+.PHONY: docker push deploy clean test

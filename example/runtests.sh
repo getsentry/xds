@@ -58,6 +58,7 @@ function main {
   XDS_URL="http://localhost:${xds_port}" \
   ENVOY_ADMIN_URL="http://localhost:${envoy_admin_port}" \
   ENVOY_FOO_URL="http://localhost:${envoy_foo_port}" \
+  SCRIPT_DIR="${SCRIPT_DIR}" \
     bats tests/
 
 }
