@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
@@ -35,7 +36,7 @@ var (
 	concurrency       = flag.Int("concurrency", 1, "envoy concurrency")
 	envoyConfigPath   = flag.String("envoy-config-path", "/envoy.yaml", "path to envoy config")
 	listen            = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
-	validate = flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
+	validate          = flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
 )
 
 // ReadFileorStdin returns content of file or stdin.
@@ -134,8 +135,8 @@ func serveHTTP(handler http.Handler) {
 }
 
 func validateConfig(configPath string) {
-	log.Printf("Validating: %s\n", *validatePtr)
-	cmRaw, err := ReadFileorStdin(*validatePtr)
+	log.Printf("Validating: %s\n", configPath)
+	cmRaw, err := ReadFileorStdin(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}

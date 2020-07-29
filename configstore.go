@@ -74,7 +74,7 @@ func (config *Config) Load(cm *v1.ConfigMap) error {
 	}
 
 	config.rules = assignments
-	if err := validateConfig(config); err != nil {
+	if err := config.validate(); err != nil {
 		return err
 	}
 
@@ -269,7 +269,7 @@ func extractAssignments(cm *v1.ConfigMap) (*AssignmentRules, error) {
 	return &ar, err
 }
 
-func validateConfig(config *Config) error {
+func (config *Config) validate() error {
 	config.rules.cache = make(map[string]*assignmentCache)
 
 	for key, assignment := range config.rules.ByNodeId {
