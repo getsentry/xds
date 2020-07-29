@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: foo
+  labels:
+    service: foo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: foo
+  template:
+    metadata:
+      labels:
+        service: foo
+    spec:
+      containers:
+        - image: nginxdemos/hello:plain-text
+          name: foo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: foo
+spec:
+  type: NodePort
+  selector:
+    service: foo
+  ports:
+    - protocol: TCP
+      port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+  labels:
+    service: bar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: bar
+  template:
+    metadata:
+      labels:
+        service: bar
+    spec:
+      containers:
+        - image: nginxdemos/hello:plain-text
+          name: bar
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bar
+spec:
+  type: NodePort
+  selector:
+    service: bar
+  ports:
+    - protocol: TCP
+      port: 80

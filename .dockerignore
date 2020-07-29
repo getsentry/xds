@@ -2,3 +2,4 @@
 *.yaml
 Makefile
 xds
+example/

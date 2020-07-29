@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -9,6 +10,8 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/gogo/protobuf/jsonpb"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type xDSHandler struct {
@@ -27,11 +30,41 @@ func (h *xDSHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h.handleConfig(w, req)
 	case "/bootstrap":
 		h.handleBootstrap(w, req)
+	case "/validate":
+		h.handleValidate(w, req)
 	case "/healthz":
 		http.Error(w, "ok", 200)
 	default:
 		http.Error(w, "not found", 404)
 	}
+}
+
+func (h *xDSHandler) handleValidate(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(w, "method not allowed", 405)
+		return
+	}
+
+	var cm v1.ConfigMap
+
+	if body, err := ioutil.ReadAll(req.Body); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	} else {
+		if err := yaml.UnmarshalStrict(body, &cm); err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+	}
+
+	config := NewConfig()
+	if err := config.Load(&cm); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	http.Error(w, "ok", 200)
 }
 
 // Endpoint Discovery Service
@@ -212,6 +245,8 @@ func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
 
 func readDiscoveryRequest(req *http.Request) (*v2.DiscoveryRequest, error) {
 	var dr v2.DiscoveryRequest
-	err := jsonpb.Unmarshal(req.Body, &dr)
+	err := (&jsonpb.Unmarshaler{
+		AllowUnknownFields: true,
+	}).Unmarshal(req.Body, &dr)
 	return &dr, err
 }

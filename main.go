@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -13,7 +15,9 @@ import (
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/go-homedir"
+	"sigs.k8s.io/yaml"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
@@ -31,7 +35,29 @@ var (
 	concurrency       = flag.Int("concurrency", 1, "envoy concurrency")
 	envoyConfigPath   = flag.String("envoy-config-path", "/envoy.yaml", "path to envoy config")
 	listen            = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
+	validate = flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
 )
+
+// ReadFileorStdin returns content of file or stdin.
+func ReadFileorStdin(filePath string) ([]byte, error) {
+	var fileHandler *os.File
+
+	if filePath == "-" {
+		fileHandler = os.Stdin
+	} else {
+		var err error
+		fileHandler, err = os.Open(filePath)
+		defer fileHandler.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	buf := bytes.NewBuffer(nil)
+	io.Copy(buf, fileHandler)
+
+	return buf.Bytes(), nil
+}
 
 // K8SConfig returns a *restclient.Config for initializing a K8S client.
 // This configuration first attempts to load a local kubeconfig if a
@@ -69,6 +95,8 @@ func runServerMode() {
 		klog.Fatal(err)
 	}
 
+	flag.Parse()
+
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Println(err)
@@ -105,9 +133,35 @@ func serveHTTP(handler http.Handler) {
 	http.ListenAndServe(*listen, handler)
 }
 
+func validateConfig(configPath string) {
+	log.Printf("Validating: %s\n", *validatePtr)
+	cmRaw, err := ReadFileorStdin(*validatePtr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var cm v1.ConfigMap
+
+	err = yaml.UnmarshalStrict(cmRaw, &cm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config := NewConfig()
+	if err := config.Load(&cm); err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Configuration is valid.")
+}
+
 func main() {
 	flag.Parse()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if *validate != "" {
+		validateConfig(*validate)
+		return
+	}
 
 	switch *mode {
 	case "server":
