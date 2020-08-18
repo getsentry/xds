@@ -135,8 +135,8 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 
 	cla := &v2.ClusterLoadAssignment{
 		ClusterName: epKey,
-		Endpoints: []endpoint.LocalityLbEndpoints{{
-			LbEndpoints: make([]endpoint.LbEndpoint, n),
+		Endpoints: []*endpoint.LocalityLbEndpoints{{
+			LbEndpoints: make([]*endpoint.LbEndpoint, n),
 		}},
 	}
 
@@ -147,7 +147,7 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 		}
 		for _, address := range subset.Addresses {
 
-			cla.Endpoints[0].LbEndpoints[n] = endpoint.LbEndpoint{
+			cla.Endpoints[0].LbEndpoints[n] = &endpoint.LbEndpoint{
 				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 					Endpoint: &endpoint.Endpoint{
 						Address: &core.Address{
@@ -172,7 +172,7 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 	r, _ := types.MarshalAny(cla)
 	j, _ := structToJSON(&v2.DiscoveryResponse{
 		VersionInfo: version,
-		Resources:   []types.Any{*r},
+		Resources:   []*types.Any{r},
 	})
 
 	// Write entire DiscoveryResponse into the registry

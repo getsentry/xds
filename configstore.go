@@ -264,14 +264,14 @@ func validateConfig(config *Config) error {
 	config.rules.cache = make(map[string]*assignmentCache)
 
 	for key, assignment := range config.rules.ByNodeId {
-		lr := make([]types.Any, len(assignment.Listeners))
+		lr := make([]*types.Any, len(assignment.Listeners))
 		cache := &assignmentCache{}
 		for i, name := range assignment.Listeners {
 			if listener, ok := config.listeners[name]; !ok {
 				return errors.New("missing listener: " + name)
 			} else {
 				r, _ := types.MarshalAny(listener)
-				lr[i] = *r
+				lr[i] = r
 			}
 		}
 		cache.listeners, _ = structToJSON(&v2.DiscoveryResponse{
@@ -279,13 +279,13 @@ func validateConfig(config *Config) error {
 			Resources:   lr,
 		})
 
-		cr := make([]types.Any, len(assignment.Clusters))
+		cr := make([]*types.Any, len(assignment.Clusters))
 		for i, name := range assignment.Clusters {
 			if cluster, ok := config.clusters[name]; !ok {
 				return errors.New("unknown cluster: " + name)
 			} else {
 				r, _ := types.MarshalAny(cluster)
-				cr[i] = *r
+				cr[i] = r
 			}
 		}
 		cache.clusters, _ = structToJSON(&v2.DiscoveryResponse{
@@ -297,14 +297,14 @@ func validateConfig(config *Config) error {
 	}
 
 	for key, assignment := range config.rules.ByCluster {
-		lr := make([]types.Any, len(assignment.Listeners))
+		lr := make([]*types.Any, len(assignment.Listeners))
 		cache := &assignmentCache{}
 		for i, name := range assignment.Listeners {
 			if listener, ok := config.listeners[name]; !ok {
 				return errors.New("missing listener: " + name)
 			} else {
 				r, _ := types.MarshalAny(listener)
-				lr[i] = *r
+				lr[i] = r
 			}
 		}
 		cache.listeners, _ = structToJSON(&v2.DiscoveryResponse{
@@ -312,13 +312,13 @@ func validateConfig(config *Config) error {
 			Resources:   lr,
 		})
 
-		cr := make([]types.Any, len(assignment.Clusters))
+		cr := make([]*types.Any, len(assignment.Clusters))
 		for i, name := range assignment.Clusters {
 			if cluster, ok := config.clusters[name]; !ok {
 				return errors.New("unknown cluster: " + name)
 			} else {
 				r, _ := types.MarshalAny(cluster)
-				cr[i] = *r
+				cr[i] = r
 			}
 		}
 		cache.clusters, _ = structToJSON(&v2.DiscoveryResponse{
