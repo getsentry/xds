@@ -205,31 +205,25 @@ func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
 
 	configSnapshot := h.controller.configStore.GetConfigSnapshot()
 
-	clusterData, ok := configSnapshot.GetClusters(node)
-	if !ok {
-		http.Error(w, "not found", 404)
-		return
-	}
-
-	listenerData, ok := configSnapshot.GetListeners(node)
-	if !ok {
-		http.Error(w, "not found", 404)
-		return
-	}
-
-	clusterNames := configSnapshot.GetClusterNames(node)
 	endpointData := make(map[string][]byte)
-	for _, clusterName := range clusterNames {
-		cluster, ok := configSnapshot.clusters[clusterName]
-		if !ok {
-			log.Printf("warning: failed to dump bootstrap data for cluster %v", clusterName)
-			continue
-		}
 
-		if endpoint, ok := h.controller.epStore.Get(cluster.EdsClusterConfig.ServiceName); ok {
-			endpointData[cluster.EdsClusterConfig.ServiceName] = endpoint.data
+	clusterData, ok := configSnapshot.GetClusters(node)
+	if ok {
+		clusterNames := configSnapshot.GetClusterNames(node)
+		for _, clusterName := range clusterNames {
+			cluster, ok := configSnapshot.clusters[clusterName]
+			if !ok {
+				log.Printf("warning: failed to dump bootstrap data for cluster %v", clusterName)
+				continue
+			}
+
+			if endpoint, ok := h.controller.epStore.Get(cluster.EdsClusterConfig.ServiceName); ok {
+				endpointData[cluster.EdsClusterConfig.ServiceName] = endpoint.data
+			}
 		}
 	}
+
+	listenerData, _ := configSnapshot.GetListeners(node)
 
 	data, err := json.Marshal(bootstrapData{
 		Clusters:  clusterData,

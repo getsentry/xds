@@ -1,4 +1,4 @@
-FROM golang:1.12-alpine3.10 AS builder
+FROM golang:1.15.0-alpine3.12 AS builder
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
@@ -12,7 +12,7 @@ COPY . ./
 
 RUN go build -v -o /bin/xds
 
-FROM envoyproxy/envoy-alpine:v1.12.0
+FROM envoyproxy/envoy-alpine:v1.14.4
 
 RUN apk add --no-cache curl
 

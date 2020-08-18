@@ -7,7 +7,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
@@ -27,16 +29,15 @@ import (
 )
 
 var (
-	mode              = flag.String("mode", "server", "what mode to run xds in (server / proxy)")
-	upstreamProxyURL  = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
-	configName        = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
-	bootstrapDataFile = flag.String("bootstrap-data", "", "bootstrap data file (if running in proxy mode)")
-	serviceNode       = flag.String("service-node", "", "service node name")
-	serviceCluster    = flag.String("service-cluster", "", "service cluster name")
-	concurrency       = flag.Int("concurrency", 1, "envoy concurrency")
-	envoyConfigPath   = flag.String("envoy-config-path", "/envoy.yaml", "path to envoy config")
-	listen            = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
-	validate          = flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
+	mode             = flag.String("mode", "server", "what mode to run xds in (server / proxy)")
+	upstreamProxyURL = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
+	configName       = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
+	bootstrapDataDir = flag.String("bootstrap-data", "", "bootstrap data directory (if running in proxy mode)")
+	serviceNode      = flag.String("service-node", "", "service node name")
+	serviceCluster   = flag.String("service-cluster", "", "service cluster name")
+	concurrency      = flag.Int("concurrency", 1, "envoy concurrency")
+	listen           = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
+	validate         = flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
 )
 
 // ReadFileorStdin returns content of file or stdin.
@@ -111,7 +112,7 @@ func runServerMode() {
 }
 
 func runProxyMode() {
-	bootstrapData, err := readBootstrapData(*bootstrapDataFile)
+	bootstrapData, err := readBootstrapData(path.Join(*bootstrapDataDir, "bootstrap.json"))
 	if err != nil {
 		panic(err)
 	}
@@ -121,12 +122,47 @@ func runProxyMode() {
 		panic(err)
 	}
 
-	err = runEnvoy(*serviceNode, *serviceCluster, *envoyConfigPath, *concurrency)
+	err = runEnvoy(*serviceNode, *serviceCluster, *upstreamProxyURL, path.Join(*bootstrapDataDir, "envoy.yaml"), *concurrency)
 	if err != nil {
 		panic(err)
 	}
 
 	serveHTTP(proxy)
+}
+
+func runBootstrapMode() {
+	values := url.Values{
+		"cluster": []string{*serviceCluster},
+		"id":      []string{*serviceNode},
+	}
+
+	bootstrapURL := fmt.Sprintf("http://xds.sentry-system.svc.cluster.local/bootstrap?%s", values.Encode())
+	log.Printf("Downloading bootstrap file from %s", bootstrapURL)
+
+	req, err := http.NewRequest("GET", bootstrapURL, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	bootstrapFilePath := path.Join(*bootstrapDataDir, "bootstrap.json")
+	out, err := os.Create(bootstrapFilePath)
+	if err != nil {
+		panic(err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Finished downloading bootstrap file to %s", bootstrapFilePath)
 }
 
 func serveHTTP(handler http.Handler) {
@@ -164,23 +200,28 @@ func main() {
 		return
 	}
 
+	if *mode == "proxy" || *mode == "bootstrap" {
+		if *upstreamProxyURL == "" {
+			log.Fatalf("Must pass 'upstream-proxy-url'")
+		}
+		if *bootstrapDataDir == "" {
+			log.Fatalf("Must pass 'bootstrap-data-dir'")
+		}
+		if *serviceNode == "" {
+			log.Fatalf("Must pass 'service-node'")
+		}
+		if *serviceCluster == "" {
+			log.Fatalf("Must pass 'service-cluster'")
+		}
+	}
+
 	switch *mode {
 	case "server":
 		runServerMode()
 	case "proxy":
-		if *upstreamProxyURL == "" {
-			log.Fatalf("Must pass 'upstream-proxy-url' when running in proxy mode")
-		}
-		if *bootstrapDataFile == "" {
-			log.Fatalf("Must pass 'bootstrap-data' when running in proxy mode")
-		}
-		if *serviceNode == "" {
-			log.Fatalf("Must pass 'service-node' while running in proxy mode")
-		}
-		if *serviceCluster == "" {
-			log.Fatalf("Must pass 'service-cluster' when running in proxy mode")
-		}
 		runProxyMode()
+	case "bootstrap":
+		runBootstrapMode()
 	default:
 		log.Fatalf("Invalid XDS mode (only 'server' and 'proxy' are supported): %s", *mode)
 	}
