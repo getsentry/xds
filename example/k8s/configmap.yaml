@@ -51,6 +51,18 @@ data:
             api_type: REST
             cluster_names: [xds_cluster]
             refresh_delay: 1s
+    - name: baz
+      type: STATIC
+      connect_timeout: 0.25s
+      load_assignment:
+        cluster_name: baz
+        endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: 127.0.0.1
+                  port_value: 8888
 
   assignments: |
     by-cluster:
@@ -64,6 +76,10 @@ data:
           - bar
         clusters:
           - bar
+      baz:
+        clusters:
+          - bar
+          - baz
     by-node-id:
       foo:
         listeners:
