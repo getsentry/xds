@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 )
 
 // /etc/envoy/envoy.yaml
@@ -52,7 +53,7 @@ func runEnvoy(serviceNode, serviceCluster, endpoint, envoyConfigPath string, con
 		"envoy",
 		"--service-node", serviceNode,
 		"--service-cluster", serviceCluster,
-		"--concurrency", string(concurrency),
+		"--concurrency", strconv.Itoa(concurrency),
 		"-c", envoyConfigPath,
 	)
 

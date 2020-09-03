@@ -30,7 +30,7 @@ import (
 
 var (
 	mode             = flag.String("mode", "server", "what mode to run xds in (server / proxy)")
-	upstreamProxyURL = flag.String("upstream-proxy-url", "", "upstream proxy url (if running in proxy mode)")
+	upstreamProxy    = flag.String("upstream-proxy", "", "upstream proxy (if running in proxy mode)")
 	configName       = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
 	bootstrapDataDir = flag.String("bootstrap-data", "", "bootstrap data directory (if running in proxy mode)")
 	serviceNode      = flag.String("service-node", "", "service node name")
@@ -117,12 +117,12 @@ func runProxyMode() {
 		panic(err)
 	}
 
-	proxy, err := newProxy(*upstreamProxyURL, bootstrapData)
+	proxy, err := newProxy(*upstreamProxy, bootstrapData)
 	if err != nil {
 		panic(err)
 	}
 
-	err = runEnvoy(*serviceNode, *serviceCluster, *upstreamProxyURL, path.Join(*bootstrapDataDir, "envoy.yaml"), *concurrency)
+	err = runEnvoy(*serviceNode, *serviceCluster, *upstreamProxy, path.Join(*bootstrapDataDir, "envoy.yaml"), *concurrency)
 	if err != nil {
 		panic(err)
 	}
@@ -136,7 +136,7 @@ func runBootstrapMode() {
 		"id":      []string{*serviceNode},
 	}
 
-	bootstrapURL := fmt.Sprintf("http://xds.sentry-system.svc.cluster.local/bootstrap?%s", values.Encode())
+	bootstrapURL := fmt.Sprintf("http://%s/bootstrap?%s", *upstreamProxy, values.Encode())
 	log.Printf("Downloading bootstrap file from %s", bootstrapURL)
 
 	req, err := http.NewRequest("GET", bootstrapURL, nil)
@@ -201,8 +201,8 @@ func main() {
 	}
 
 	if *mode == "proxy" || *mode == "bootstrap" {
-		if *upstreamProxyURL == "" {
-			log.Fatalf("Must pass 'upstream-proxy-url'")
+		if *upstreamProxy == "" {
+			log.Fatalf("Must pass 'upstream-proxy'")
 		}
 		if *bootstrapDataDir == "" {
 			log.Fatalf("Must pass 'bootstrap-data-dir'")
