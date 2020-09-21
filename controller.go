@@ -1,9 +1,7 @@
 package main
 
 import (
-	"os"
-
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -16,13 +14,14 @@ type Controller struct {
 
 func NewController(
 	k8sClient *kubernetes.Clientset,
+	configName string,
 ) *Controller {
 	c := &Controller{
-		k8sClient: k8sClient,
+		k8sClient:   k8sClient,
+		configStore: NewConfigStore(k8sClient, configName),
 	}
 
-	c.configStore = NewConfigStore(k8sClient, os.Getenv(XDS_CONFIGMAP_ENV))
-	if err := c.configStore.Init(); err != nil {
+	if err := c.configStore.InitFromK8s(); err != nil {
 		panic(err)
 	}
 
@@ -36,4 +35,12 @@ func NewController(
 func (c *Controller) Run() {
 	go c.configStore.Run()
 	go c.epStore.Run()
+}
+
+func (c *Controller) GetEndpoints(cluster string) (*Endpoints, bool) {
+	return c.epStore.Get(cluster)
+}
+
+func (c *Controller) GetConfigSnapshot() *Config {
+	return c.configStore.GetConfigSnapshot()
 }

@@ -1,4 +1,4 @@
-FROM golang:1.15-alpine3.12 AS builder
+FROM golang:1.15.2-alpine3.12 AS builder
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
@@ -12,7 +12,8 @@ COPY . ./
 
 RUN go build -v -o /bin/xds
 
-FROM alpine:3.12
+FROM envoyproxy/envoy-alpine:v1.14.4
+
 COPY --from=builder /bin/xds /bin/xds
 
 ENTRYPOINT ["/bin/xds"]

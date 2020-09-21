@@ -76,7 +76,7 @@ func (config *Config) Load(cm *v1.ConfigMap) error {
 	}
 
 	config.rules = assignments
-	if err := validateConfig(config); err != nil {
+	if err := config.validate(); err != nil {
 		return err
 	}
 
@@ -111,6 +111,20 @@ func (c *Config) GetClusters(node *core.Node) ([]byte, bool) {
 	return nil, false
 }
 
+func (c *Config) GetClusterNames(node *core.Node) []string {
+	result := make([]string, 0)
+
+	if assignment, exists := c.rules.ByNodeId[node.Id]; exists {
+		result = append(result, assignment.Clusters...)
+	}
+
+	if assignment, exists := c.rules.ByCluster[node.Cluster]; exists {
+		result = append(result, assignment.Clusters...)
+	}
+
+	return result
+}
+
 type Assignment struct {
 	Listeners []string `json:"listeners"`
 	Clusters  []string `json:"clusters"`
@@ -143,7 +157,7 @@ type ConfigStore struct {
 	lastError  error
 }
 
-func (cs *ConfigStore) Init() error {
+func (cs *ConfigStore) InitFromK8s() error {
 	namespace, name := k8sSplitName(cs.configName)
 	log.Println("ConfigStore.Init: ", namespace, name, cs.configName)
 	cm, err := cs.k8sClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
@@ -179,9 +193,6 @@ func NewConfigStore(
 	k8sClient *kubernetes.Clientset,
 	configName string,
 ) *ConfigStore {
-	if configName == "" {
-		configName = "default/xds"
-	}
 	cs := &ConfigStore{
 		configName: configName,
 		k8sClient:  k8sClient,
@@ -260,7 +271,7 @@ func extractAssignments(cm *v1.ConfigMap) (*AssignmentRules, error) {
 	return &ar, err
 }
 
-func validateConfig(config *Config) error {
+func (config *Config) validate() error {
 	config.rules.cache = make(map[string]*assignmentCache)
 
 	for key, assignment := range config.rules.ByNodeId {
