@@ -31,12 +31,12 @@ import (
 var (
 	mode             = flag.String("mode", "server", "what mode to run xds in (server / proxy)")
 	upstreamProxy    = flag.String("upstream-proxy", "", "upstream proxy (if running in proxy mode)")
-	configName       = flag.String("config-name", "default/xds", "configmap name to use for xds configuration (if running in server mode)")
+	configName       = flag.String("config-name", "", "configmap name to use for xds configuration (if running in server mode)")
 	bootstrapDataDir = flag.String("bootstrap-data", "", "bootstrap data directory (if running in proxy mode)")
 	serviceNode      = flag.String("service-node", "", "service node name")
 	serviceCluster   = flag.String("service-cluster", "", "service cluster name")
 	concurrency      = flag.Int("concurrency", 1, "envoy concurrency")
-	listen           = flag.String("listen", "0.0.0.0:5000", "listen address for web service")
+	listen           = flag.String("listen", "", "listen address for web service")
 	validate         = flag.String("validate", "", "Path to config map to validate. `-` reads from stdin.")
 )
 
@@ -105,6 +105,13 @@ func runServerMode() {
 		klog.Fatal(err)
 	}
 
+	if *configName == "" {
+		*configName = os.Getenv("XDS_CONFIGMAP")
+		if *configName == "" {
+			log.Fatalf("Must pass -config-name argument or XDS_CONFIGMAP environment variable")
+		}
+	}
+
 	// synchronously fetches initial state and sets things up
 	c := NewController(client, *configName)
 	c.Run()
@@ -167,6 +174,14 @@ func runBootstrapMode() {
 
 func serveHTTP(handler http.Handler) {
 	log.Println("ready.")
+
+	if *listen == "" {
+		*listen = os.Getenv("XDS_LISTEN")
+		if *listen == "" {
+			log.Fatalf("Must pass -listen argument or XDS_LISTEN environment variable")
+		}
+	}
+
 	http.ListenAndServe(*listen, handler)
 }
 
