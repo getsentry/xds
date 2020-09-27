@@ -29,6 +29,18 @@ data:
               '@type': type.googleapis.com/envoy.config.filter.network.tcp_proxy.v2.TcpProxy
               cluster: bar
               stat_prefix: bar
+    - name: qux
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 10002
+      filter_chains:
+        - filters:
+          - name: envoy.tcp_proxy
+            typed_config:
+              '@type': type.googleapis.com/envoy.config.filter.network.tcp_proxy.v2.TcpProxy
+              cluster: qux 
+              stat_prefix: qux
 
   clusters: |
     - name: foo
@@ -63,6 +75,16 @@ data:
                 socket_address:
                   address: 127.0.0.1
                   port_value: 8888
+    - name: qux
+      type: EDS
+      connect_timeout: 0.25s
+      eds_cluster_config:
+        service_name: quxns/qux
+        eds_config:
+          api_config_source:
+            api_type: REST
+            cluster_names: [xds_cluster]
+            refresh_delay: 1s
 
   assignments: |
     by-cluster:
@@ -76,6 +98,11 @@ data:
           - bar
         clusters:
           - bar
+      qux:
+        listeners:
+          - qux
+        clusters:
+          - qux
       baz:
         clusters:
           - bar
@@ -91,3 +118,8 @@ data:
           - bar
         clusters:
           - bar
+      qux:
+        listeners:
+          - qux 
+        clusters:
+          - qux

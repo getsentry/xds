@@ -62,3 +62,42 @@ spec:
   ports:
     - protocol: TCP
       port: 80
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quxns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qux
+  namespace: quxns
+  labels:
+    service: qux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: qux
+  template:
+    metadata:
+      labels:
+        service: qux
+    spec:
+      containers:
+        - image: nginxdemos/hello:plain-text
+          name: qux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qux
+  namespace: quxns
+spec:
+  type: NodePort
+  selector:
+    service: qux
+  ports:
+    - protocol: TCP
+      port: 80
