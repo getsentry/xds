@@ -18,7 +18,6 @@ import (
 
 type EpStore struct {
 	k8sClient *kubernetes.Clientset
-	namespace string
 
 	informer cache.SharedIndexInformer
 	store    cache.Store
@@ -35,16 +34,13 @@ type Endpoints struct {
 
 func NewEpStore(
 	k8sClient *kubernetes.Clientset,
-	namespace string,
 	configStore *ConfigStore,
 ) *EpStore {
 	es := &EpStore{
 		k8sClient:   k8sClient,
-		namespace:   namespace,
 		configStore: configStore,
 	}
 	infFactory := informers.NewSharedInformerFactoryWithOptions(k8sClient, 0,
-		informers.WithNamespace(namespace),
 		informers.WithTweakListOptions(func(*metav1.ListOptions) {}))
 
 	es.informer = infFactory.Core().V1().Endpoints().Informer()
@@ -92,12 +88,12 @@ func NewEpStore(
 
 func (es *EpStore) Init() error {
 	config := es.configStore.GetConfigSnapshot()
-	eps, err := es.k8sClient.CoreV1().Endpoints(es.namespace).List(metav1.ListOptions{})
+	eps, err := es.k8sClient.CoreV1().Endpoints(v1.NamespaceAll).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 	for _, ep := range eps.Items {
-		if !config.HasService(es.namespace + "/" + ep.GetName()) {
+		if !config.HasService(ep.GetNamespace() + "/" + ep.GetName()) {
 			continue
 		}
 		es.store.Add(&ep)
@@ -115,7 +111,7 @@ func validSubset(subset v1.EndpointSubset) bool {
 }
 
 func (es *EpStore) LoadEp(ep *v1.Endpoints) {
-	epKey := es.namespace + "/" + ep.GetName()
+	epKey := ep.GetNamespace() + "/" + ep.GetName()
 	version := ep.ObjectMeta.ResourceVersion
 
 	// Check if the existing resource version is the same

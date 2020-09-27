@@ -1,7 +1,6 @@
 package main
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -25,7 +24,7 @@ func NewController(
 		panic(err)
 	}
 
-	c.epStore = NewEpStore(k8sClient, v1.NamespaceDefault, c.configStore)
+	c.epStore = NewEpStore(k8sClient, c.configStore)
 	if err := c.epStore.Init(); err != nil {
 		panic(err)
 	}
