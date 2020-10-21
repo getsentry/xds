@@ -9,7 +9,6 @@ It's tightly coupled to Kubernetes:
 - Cluster endpoints are Kubernetes service endpoints.
 
 Limitations:
-- Services only from the *default* namespace.
 - Supports only services exposing one port. Services exposing multiple ports will are ignored.
 
 
@@ -21,7 +20,7 @@ xDS uses environment variables for configuration:
 - **XDS_LISTEN** - Socket address for the http server. Defaults to `127.0.0.1:5000`.
 
 
-## Running 
+## Running
 
 Build a docker image:
 
@@ -60,9 +59,9 @@ Or by `POST`ing to the `/validate` endpoint:
 curl localhost:5000/validate --data-binary @example/k8s/configmap.yaml
 ok
 
-# or 
+# or
 
-render_my_configmap | curl localhost:5000/validate --data-binary @- 
+render_my_configmap | curl localhost:5000/validate --data-binary @-
 ok
 ```
 
