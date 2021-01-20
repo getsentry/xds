@@ -217,6 +217,11 @@ func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
 				continue
 			}
 
+			// We only attempt to pre-export endpoints for EDS clusters
+			if cluster.GetType() != v2.Cluster_EDS {
+				continue
+			}
+
 			if endpoint, ok := h.controller.epStore.Get(cluster.EdsClusterConfig.ServiceName); ok {
 				endpointData[cluster.EdsClusterConfig.ServiceName] = endpoint.data
 			}
