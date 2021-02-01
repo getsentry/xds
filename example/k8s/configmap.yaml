@@ -17,6 +17,17 @@ data:
               '@type': type.googleapis.com/envoy.config.filter.network.tcp_proxy.v2.TcpProxy
               cluster: foo
               stat_prefix: foo
+              access_log:
+              - name: envoy.access_loggers.file
+                filter:
+                  status_code_filter:
+                    comparison:
+                      op: GE
+                      value:
+                        default_value: 500
+                        runtime_key: access_log_50X_errors
+                config:
+                  path: "/var/log/envoy/relay-http.access.log"
     - name: bar
       address:
         socket_address:

@@ -34,7 +34,7 @@ function main {
 
   log "Deploy to k8s"
   kubectl apply -f "${SCRIPT_DIR}/k8s"
-  trap 'kubectl delete -f "${SCRIPT_DIR}/k8s"' exit
+  # trap 'kubectl delete -f "${SCRIPT_DIR}/k8s"' exit
 
   log "Wait a bit ..."
   sleep 5
