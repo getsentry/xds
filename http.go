@@ -8,8 +8,8 @@ import (
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/gogo/protobuf/jsonpb"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/golang/protobuf/jsonpb"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )

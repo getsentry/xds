@@ -8,8 +8,9 @@ import (
 	"time"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/gogo/protobuf/types"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -275,13 +276,13 @@ func (config *Config) validate() error {
 	config.rules.cache = make(map[string]*assignmentCache)
 
 	for key, assignment := range config.rules.ByNodeId {
-		lr := make([]*types.Any, len(assignment.Listeners))
+		lr := make([]*any.Any, len(assignment.Listeners))
 		cache := &assignmentCache{}
 		for i, name := range assignment.Listeners {
 			if listener, ok := config.listeners[name]; !ok {
 				return errors.New("missing listener: " + name)
 			} else {
-				r, _ := types.MarshalAny(listener)
+				r, _ := ptypes.MarshalAny(listener)
 				lr[i] = r
 			}
 		}
@@ -290,12 +291,12 @@ func (config *Config) validate() error {
 			Resources:   lr,
 		})
 
-		cr := make([]*types.Any, len(assignment.Clusters))
+		cr := make([]*any.Any, len(assignment.Clusters))
 		for i, name := range assignment.Clusters {
 			if cluster, ok := config.clusters[name]; !ok {
 				return errors.New("unknown cluster: " + name)
 			} else {
-				r, _ := types.MarshalAny(cluster)
+				r, _ := ptypes.MarshalAny(cluster)
 				cr[i] = r
 			}
 		}
@@ -308,13 +309,13 @@ func (config *Config) validate() error {
 	}
 
 	for key, assignment := range config.rules.ByCluster {
-		lr := make([]*types.Any, len(assignment.Listeners))
+		lr := make([]*any.Any, len(assignment.Listeners))
 		cache := &assignmentCache{}
 		for i, name := range assignment.Listeners {
 			if listener, ok := config.listeners[name]; !ok {
 				return errors.New("missing listener: " + name)
 			} else {
-				r, _ := types.MarshalAny(listener)
+				r, _ := ptypes.MarshalAny(listener)
 				lr[i] = r
 			}
 		}
@@ -323,12 +324,12 @@ func (config *Config) validate() error {
 			Resources:   lr,
 		})
 
-		cr := make([]*types.Any, len(assignment.Clusters))
+		cr := make([]*any.Any, len(assignment.Clusters))
 		for i, name := range assignment.Clusters {
 			if cluster, ok := config.clusters[name]; !ok {
 				return errors.New("unknown cluster: " + name)
 			} else {
-				r, _ := types.MarshalAny(cluster)
+				r, _ := ptypes.MarshalAny(cluster)
 				cr[i] = r
 			}
 		}
