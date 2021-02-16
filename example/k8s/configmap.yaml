@@ -17,6 +17,14 @@ data:
               '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
               cluster: foo
               stat_prefix: foo
+          - name: envoy.filters.http.health_check
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
+              pass_through_mode: true
+              cache_time: 1s
+              headers:
+              - name: :path
+                exact_match: /health/
     - name: bar
       address:
         socket_address:
