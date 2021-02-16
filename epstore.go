@@ -5,11 +5,12 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-	"github.com/gogo/protobuf/types"
-	"k8s.io/api/core/v1"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -149,7 +150,7 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 						Address: &core.Address{
 							Address: &core.Address_SocketAddress{
 								SocketAddress: &core.SocketAddress{
-									Protocol: core.TCP,
+									Protocol: core.SocketAddress_TCP,
 									Address:  address.IP,
 									PortSpecifier: &core.SocketAddress_PortValue{
 										PortValue: uint32(subset.Ports[0].Port),
@@ -165,10 +166,10 @@ func (es *EpStore) LoadEp(ep *v1.Endpoints) {
 		}
 	}
 
-	r, _ := types.MarshalAny(cla)
+	r, _ := ptypes.MarshalAny(cla)
 	j, _ := structToJSON(&v2.DiscoveryResponse{
 		VersionInfo: version,
-		Resources:   []*types.Any{r},
+		Resources:   []*any.Any{r},
 	})
 
 	// Write entire DiscoveryResponse into the registry
