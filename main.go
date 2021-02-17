@@ -12,6 +12,13 @@ import (
 	"path"
 	"path/filepath"
 
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/health_check/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/ratelimit/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/redis_proxy/v3"
+	_ "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
+
+	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/health_check/v2"
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/rate_limit/v2"
 	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/redis_proxy/v2"
