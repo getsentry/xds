@@ -57,10 +57,12 @@ func (config *Config) Load(cm *v1.ConfigMap) error {
 	}
 
 	for _, listener := range listeners {
+		log.Printf("loading listener %s", listener.Name)
 		config.listeners[listener.Name] = listener
 	}
 
 	for _, cluster := range clusters {
+		log.Printf("loading cluster %s", cluster.Name)
 		if cluster.GetType() == v2.Cluster_EDS {
 			serviceName := cluster.EdsClusterConfig.ServiceName
 			if serviceName[:4] == "k8s:" {
