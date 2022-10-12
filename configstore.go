@@ -67,13 +67,14 @@ func (config *Config) Load(cm *v1.ConfigMap) error {
 			if edsClusterConfig := cluster.EdsClusterConfig; edsClusterConfig == nil {
 				d, _ := yaml.Marshal(cluster)
 				log.Printf("not found expected `eds_cluster_config` section; see parsed YAML:\n\n%s\n", d)
-			} else {
-				serviceName := edsClusterConfig.ServiceName
-				if serviceName[:4] == "k8s:" {
-					serviceName = serviceName[4:]
-				}
-				config.services[serviceName] = struct{}{}
+				continue
 			}
+
+			serviceName := edsClusterConfig.ServiceName
+			if serviceName[:4] == "k8s:" {
+				serviceName = serviceName[4:]
+			}
+			config.services[serviceName] = struct{}{}
 		}
 		config.clusters[cluster.Name] = cluster
 	}
