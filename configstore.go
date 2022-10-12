@@ -64,7 +64,8 @@ func (config *Config) Load(cm *v1.ConfigMap) error {
 	for _, cluster := range clusters {
 		log.Printf("loading cluster %s", cluster.Name)
 		if cluster.GetType() == v2.Cluster_EDS {
-			if edsClusterConfig := cluster.EdsClusterConfig; edsClusterConfig == nil {
+			edsClusterConfig := cluster.EdsClusterConfig
+			if edsClusterConfig == nil {
 				d, _ := yaml.Marshal(cluster)
 				log.Printf("not found expected `eds_cluster_config` section; see parsed YAML:\n\n%s\n", d)
 				continue
