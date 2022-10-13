@@ -57,12 +57,21 @@ func (config *Config) Load(cm *v1.ConfigMap) error {
 	}
 
 	for _, listener := range listeners {
+		log.Printf("loading listener %s", listener.Name)
 		config.listeners[listener.Name] = listener
 	}
 
 	for _, cluster := range clusters {
+		log.Printf("loading cluster %s", cluster.Name)
 		if cluster.GetType() == v2.Cluster_EDS {
-			serviceName := cluster.EdsClusterConfig.ServiceName
+			edsClusterConfig := cluster.EdsClusterConfig
+			if edsClusterConfig == nil {
+				d, _ := yaml.Marshal(cluster)
+				log.Printf("not found expected `eds_cluster_config` section; see parsed YAML:\n\n%s\n", d)
+				continue
+			}
+
+			serviceName := edsClusterConfig.ServiceName
 			if serviceName[:4] == "k8s:" {
 				serviceName = serviceName[4:]
 			}
