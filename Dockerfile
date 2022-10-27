@@ -12,7 +12,7 @@ COPY . ./
 
 RUN go build -v -o /bin/xds
 
-FROM envoyproxy/envoy-alpine:v1.14.4
+FROM envoyproxy/envoy-alpine:v1.16.0
 
 COPY --from=builder /bin/xds /bin/xds
 
