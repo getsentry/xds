@@ -9,7 +9,7 @@ import (
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/golang/protobuf/jsonpb"
+	"google.golang.org/protobuf/encoding/protojson"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -244,8 +244,14 @@ func (h *xDSHandler) handleBootstrap(w http.ResponseWriter, req *http.Request) {
 
 func readDiscoveryRequest(req *http.Request) (*v2.DiscoveryRequest, error) {
 	var dr v2.DiscoveryRequest
-	err := (&jsonpb.Unmarshaler{
-		AllowUnknownFields: true,
-	}).Unmarshal(req.Body, &dr)
+	var b []byte
+	_, err := req.Body.Read(b)
+	if err != nil {
+		return nil, err
+	}
+
+	err = (&protojson.UnmarshalOptions{
+		DiscardUnknown: true,
+	}).Unmarshal(b, &dr)
 	return &dr, err
 }

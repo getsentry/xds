@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -170,7 +171,7 @@ type ConfigStore struct {
 func (cs *ConfigStore) InitFromK8s() error {
 	namespace, name := k8sSplitName(cs.configName)
 	log.Println("ConfigStore.Init: ", namespace, name, cs.configName)
-	cm, err := cs.k8sClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	cm, err := cs.k8sClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		log.Println("ConfigStore.Init wups ", err)
 		return err

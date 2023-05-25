@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"reflect"
 	"sync"
@@ -89,7 +90,7 @@ func NewEpStore(
 
 func (es *EpStore) Init() error {
 	config := es.configStore.GetConfigSnapshot()
-	eps, err := es.k8sClient.CoreV1().Endpoints(v1.NamespaceAll).List(metav1.ListOptions{})
+	eps, err := es.k8sClient.CoreV1().Endpoints(v1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

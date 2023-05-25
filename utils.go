@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/yaml"
 )
 
@@ -24,15 +23,15 @@ func convertToPb(data interface{}, pb proto.Message) error {
 	if err != nil {
 		return err
 	}
-	return jsonpb.Unmarshal(bytes.NewReader(j), pb)
+	return protojson.Unmarshal(j, pb)
 }
 
 func structToJSON(pb proto.Message) ([]byte, error) {
-	var b bytes.Buffer
-	if err := (&jsonpb.Marshaler{OrigName: true}).Marshal(&b, pb); err != nil {
+	b, err := (&protojson.MarshalOptions{UseProtoNames: true}).Marshal(pb)
+	if err != nil {
 		return nil, err
 	}
-	return b.Bytes(), nil
+	return b, nil
 }
 
 func structToYAML(pb proto.Message) ([]byte, error) {
