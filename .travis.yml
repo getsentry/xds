@@ -1,5 +1,7 @@
 ---
 language: go
+go:
+  - 1.20.4
 script:
   - env GO111MODULE=on go mod download
   - env GO111MODULE=on go test -v
