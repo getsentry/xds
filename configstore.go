@@ -187,8 +187,11 @@ func (cs *ConfigStore) Load(cm *v1.ConfigMap) error {
 	defer func() {
 		cs.lastUpdate = time.Now()
 	}()
+	configSnapshot := cs.config
 	cs.config = NewConfig()
 	if err := cs.config.Load(cm); err != nil {
+		// Restore previously loaded Config
+		cs.config = configSnapshot
 		return err
 	}
 	cs.configMap = cm
