@@ -2,6 +2,8 @@ module xds
 
 go 1.15
 
+toolchain go1.26.10
+
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.9.8
